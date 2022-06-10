@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🚀 | Rocket Control</title>
+    <style>
+        body {
+            background-color: #150e1c;
+            color: white;
+            font-family: sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+        span {
+            font-weight: bold;
+        }
+        #display {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;  /* v - viewport | w - width */
+            height: 100vh; /* v - viewport | h - height */
+            scale: 100% -100%;
+        }
+        #stats {
+            position: sticky;
+            margin: 10px;
+            width: max-content;
+        }
+    </style>
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <canvas id="display"></canvas>
+    <div id="stats">
+        <div>X: <span id="x"></span></div>
+        <div>Y: <span id="y"></span></div>
+        <div>AccX: <span id="acc-x"></span></div>
+        <div>AccY: <span id="acc-y"></span></div>
+        <div>SpeedX: <span id="speed-x"></span></div>
+        <div>SpeedY: <span id="speed-y"></span></div>
+        <div>FPS: <span id="fps"></span></div>
+    </div>
+</body>
+</html>
