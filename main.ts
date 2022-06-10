@@ -36,14 +36,14 @@ class Vector2 {
     }
 }
 
-const speed = 0.002
+const speed = 0.003
 
 class Entity {
     #oldPos: Vector2
 
     pos: Vector2
     acceleration = vec2(0)
-    dumper = vec2(0.14)
+    dumper = vec2(0.06)
 
     fillColor = 'red'
 
@@ -125,7 +125,7 @@ class Shape extends Entity {
         if (this.strokeOver) ctx.stroke()
     }
 
-    drawVectors(ctx: CanvasRenderingContext2D) {
+    drawVector(ctx: CanvasRenderingContext2D) {
         ctx.strokeStyle = 'lime'
         ctx.lineWidth = 5
         ctx.lineCap = 'round'
@@ -256,10 +256,8 @@ window.addEventListener('load', () => {
         ship.updatePosition(dt)
 
         ship.draw(ctx)
-        ship.drawVectors(ctx)
+        ship.drawVector(ctx)
         ship.drawCenter(ctx)
-
-        ctx.setTransform(1, 0, 0, 1, 0, 0)
 
         lastTime = time
         
