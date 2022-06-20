@@ -1,0 +1,10 @@
+{
+    "include": ["src/**/*.ts"],
+    "exclude": [],
+    "compilerOptions": {
+        "outDir": "./js/",
+        "target": "ES2022",
+        "module": "ESNext",
+        "noEmitOnError": true
+    }
+}
