@@ -1,3 +1,6 @@
+/**
+ * Sets common key and mouse event listeners.
+ */
 export default class Controls {
     key = {};
     keyDownEvents = {};
@@ -16,16 +19,26 @@ export default class Controls {
                 this.keyUpEvents[e.code](e);
         });
     }
+    /**
+     * Sets 'keydown' event for given key.
+     */
     keyDown(name, callback) {
         this.keyDownEvents[name] = callback;
     }
+    /**
+     * Sets 'keyup' event for given key.
+     */
     keyUp(name, callback) {
         this.keyUpEvents[name] = callback;
     }
+    /**
+     * Enables key state watching.
+     *
+     * Key state can be get from {@link key key map}.
+     */
     keyWatch(...names) {
         names.forEach(name => {
-            if (!(name in this.key))
-                this.key[name] = false;
+            this.key[name] ??= false;
         });
     }
 }

@@ -2,6 +2,9 @@ type KeyCallback = (e: KeyboardEvent) => void
 
 type KeyEvents = { [name: string]: KeyCallback }
 
+/**
+ * Sets common key and mouse event listeners.
+ */
 export default class Controls {
     readonly key: { [name: string]: boolean } = {}
 
@@ -20,17 +23,28 @@ export default class Controls {
         })
     }
 
+    /**
+     * Sets 'keydown' event for given key.
+     */
     keyDown(name: string, callback: KeyCallback) {
         this.keyDownEvents[name] = callback
     }
 
+    /**
+     * Sets 'keyup' event for given key.
+     */
     keyUp(name: string, callback: KeyCallback) {
         this.keyUpEvents[name] = callback
     }
 
+    /**
+     * Enables key state watching.
+     * 
+     * Key state can be get from {@link key key map}.
+     */
     keyWatch(...names: string[]) {
         names.forEach(name => {
-            if (!(name in this.key)) this.key[name] = false
+            this.key[name] ??= false
         })
     }
 }
