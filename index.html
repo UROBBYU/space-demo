@@ -1,45 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dosis:wght@700&family=Permanent+Marker&family=Press+Start+2P&display=swap" rel="stylesheet"> 
     <meta charset="UTF-8">
     <title>🚀 | Rocket Control</title>
-    <style>
-        body {
-            --background-pos: -500px -500px;
-            color: white;
-            font-family: sans-serif;
-            margin: 0;
-            overflow: hidden;
-        }
-        body::before {
-            content: '';
-            background-image: url('assets/img/space.jpg');
-            background-size: 300vh;
-            background-position: var(--background-pos);
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            filter: contrast(1.2) hue-rotate(-10deg);
-        }
-        span {
-            font-weight: bold;
-        }
-        #display {
-            position: absolute;
-            top: 0;
-            left: 0;
-            transform: scale(1, -1);
-            width: 100vw;  /* v - viewport | w - width */
-            height: 100vh; /* v - viewport | h - height */
-        }
-        #stats {
-            position: sticky;
-            margin: 10px;
-            width: max-content;
-        }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/propLoader.js" type="module" async></script>
     <script src="js/controls.js" type="module" async></script>
     <script src="js/engine.js" type="module" async></script>
     <script src="js/main.js" type="module" async></script>
@@ -48,10 +16,24 @@
     <div id="props">
         <div name="img">
             <img src="assets/img/ship.png">
+            <img name="invader1" src="assets/img/invader1.states.png">
+            <img name="invader2" src="assets/img/invader2.states.png">
+            <img name="invader3" src="assets/img/invader3.states.png">
+            <img name="fireIdle" src="assets/img/ship-trust-idle.anim.png">
+            <img name="crosshair" src="assets/img/crosshair.anim.png">
         </div>
     </div>
     <canvas id="display"></canvas>
-    <div id="stats">
+    <div id="menu">
+        <div id="main-menu">
+            <div class="title">Space Demo</div>
+            <button id="main-play" class="menu-button">Play</button>
+            <button id="main-settings" class="menu-button">Settings</button>
+            <button id="main-about" class="menu-button">About</button>
+            <button id="main-exit" class="menu-button">Exit</button>
+        </div>
+    </div>
+    <div id="stats" hidden>
         <div>X: <span id="x"></span></div>
         <div>Y: <span id="y"></span></div>
         <div>AccX: <span id="acc-x"></span></div>

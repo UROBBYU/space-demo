@@ -229,26 +229,30 @@ export class Shape extends Entity {
 export class Sprite extends Entity {
     image = new Image();
     imageSmoothing;
-    constructor({ x, y, scale, rotate, dumper, acceleration, anchor, hidden, timeOfLife, img, flipY = false, imageSmoothing = false }) {
+    offset;
+    crop;
+    constructor({ x, y, scale, rotate, dumper, acceleration, anchor, hidden, timeOfLife, img, flipY = true, imageSmoothing = false, offset = vec2(0), crop = vec2(+img.width, +img.height) }) {
         super({ x, y, scale, rotate, dumper, acceleration, anchor, hidden, timeOfLife });
         this.imageSmoothing = imageSmoothing;
         this.anchor = anchor ?? vec2(+img.width / 2, +img.height / 2);
+        this.offset = offset;
+        this.crop = crop;
         this.setImage({ img, flipY });
     }
     /**
      * Draws this entity on the canvas.
      */
-    draw(ctx) {
+    draw(ctx, offset, crop) {
         const sT = ctx.getTransform();
         this.transform(ctx);
         ctx.imageSmoothingEnabled = this.imageSmoothing;
-        ctx.drawImage(this.image, this.position.x - this.anchor.x, this.position.y - this.anchor.y);
+        ctx.drawImage(this.image, offset?.x ?? this.offset.x, offset?.y ?? this.offset.y, crop?.x ?? this.crop.x, crop?.y ?? this.crop.y, this.position.x - this.anchor.x, this.position.y - this.anchor.y, crop?.x ?? this.crop.x, crop?.y ?? this.crop.y);
         ctx.setTransform(sT);
     }
     /**
      * Sets this sprite's source image.
      */
-    setImage({ img, flipY = false }) {
+    setImage({ img, flipY = true }) {
         const promise = createImageBitmap(img, {
             imageOrientation: flipY ? 'flipY' : 'none'
         });
@@ -256,6 +260,40 @@ export class Sprite extends Entity {
             this.image = v;
         });
         return promise;
+    }
+}
+export class Slides extends Sprite {
+    slide;
+    slides;
+    gap;
+    constructor({ x, y, scale, rotate, dumper, acceleration, anchor, hidden, timeOfLife, img, flipY, slides = vec2(1), slide = vec2(0), gap = 1, imageSmoothing }) {
+        super({ x, y, scale, rotate, dumper, acceleration, anchor: vec2(0, 0), hidden, timeOfLife, img, flipY, imageSmoothing });
+        if ((+img.width - gap * (slides.x - 1)) % slides.x)
+            throw new Error(`Image width (${+img.width - gap * (slides.x - 1)}) cannot be evenly separated into ${+slides.x} pieces`);
+        if ((+img.height - gap * (slides.y - 1)) % slides.y)
+            throw new Error(`Image height (${+img.height - gap * (slides.y - 1)}) cannot be evenly separated into ${+slides.y} pieces`);
+        this.slides = slides;
+        this.slide = slide;
+        this.gap = gap;
+        this.anchor = anchor ?? vec2((+img.width - gap * (slides.x - 1)) / slides.x / 2, (+img.height - gap * (slides.y - 1)) / slides.y / 2);
+    }
+    next() {
+        if (++this.slide.x >= this.slides.x)
+            this.slide.x = 0;
+    }
+    previous() {
+        if (--this.slide.x < 0)
+            this.slide.x = this.slides.x - 1;
+    }
+    draw(ctx) {
+        const offset = this.slideSize.sum(vec2(this.gap)).mult(this.slide);
+        super.draw(ctx, offset, this.slideSize);
+    }
+    get slidesCount() {
+        return this.slides.x * this.slides.y;
+    }
+    get slideSize() {
+        return vec2((this.image.width - this.gap * (this.slides.x - 1)) / this.slides.x, (this.image.height - this.gap * (this.slides.y - 1)) / this.slides.y);
     }
 }
 /**

@@ -1,0 +1,87 @@
+body {
+    --background-pos: -500px -500px;
+    color: white;
+    font-family: sans-serif;
+    margin: 0;
+    overflow: hidden;
+}
+body::before {
+    content: '';
+    background-image: url('/assets/img/space.jpg');
+    background-size: 300vh;
+    background-position: var(--background-pos);
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    filter: contrast(1.2) hue-rotate(-10deg);
+}
+span {
+    font-weight: bold;
+}
+#display {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: scale(1, -1);
+    width: 100vw;  /* v - viewport | w - width */
+    height: 100vh; /* v - viewport | h - height */
+}
+#stats {
+    position: sticky;
+    margin: 10px;
+    width: max-content;
+}
+#props {
+    display: none;
+}
+
+#menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(26, 23, 34, 0.5);
+}
+
+#main-menu {
+	display: flex;
+	flex-direction: column;
+	width: max-content;
+	margin-inline: auto;
+	margin-top: 12vh;
+	align-items: center;
+	gap: 2vh;
+}
+
+#main-menu > .title {
+	font-size: 13vh;
+	text-transform: uppercase;
+	color: yellow;
+	user-select: none;
+    font-family: 'Permanent Marker', cursive;
+    text-shadow: 0.03em 0.03em #4ebbdd;
+    margin-bottom: 10vh;
+}
+
+#main-menu > .menu-button {
+	font-size: 4vh;
+	font-family: 'Dosis', sans-serif;
+	width: 30vh;
+	border-radius: 0.8vh;
+	border-width: 0.3vh;
+	padding-block: 0.1vh;
+}
+
+#main-menu > .menu-button:focus-visible {
+    outline: none;
+}
+
+#main-menu > .menu-button:focus-visible::before {
+    content: '>';
+}
+#main-menu > .menu-button:focus-visible::after {
+    content: '<';
+}

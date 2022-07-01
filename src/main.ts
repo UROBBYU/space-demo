@@ -1,9 +1,16 @@
+import props from './propLoader.js'
 import Controls from './controls.js'
-import { Entity, Shape, vec2, Scene, Sprite } from "./engine.js"
+import { Entity, Shape, vec2, Scene, Sprite, Slides } from "./engine.js"
 
 window.addEventListener('load', () => {
 
     //* Getting elements from the page 🖼️
+
+    const menu = document.getElementById('menu')
+    const playBtn = document.getElementById('main-play')
+    const settingsBtn = document.getElementById('main-settings')
+    const aboutBtn = document.getElementById('main-about')
+    const exitBtn = document.getElementById('main-exit')
 
     const valX = document.getElementById('x')
     const valY = document.getElementById('y')
@@ -65,6 +72,17 @@ window.addEventListener('load', () => {
 
     window.addEventListener('resize', resize)
 
+    playBtn.addEventListener('click', () => {
+        menu.style.display = 'none'
+        display.requestPointerLock()
+    })
+
+    document.addEventListener('pointerlockchange', () => {
+        if (!document.pointerLockElement) {
+            menu.style.display = ''
+        }
+    })
+
 
 
     //* Scene & Objects 🚀
@@ -72,29 +90,62 @@ window.addEventListener('load', () => {
     const scene = globalThis.scene = new Scene(ctx)
 
     const ship = globalThis.ship = new Sprite({
-        x: 300,
-        y: 300,
-        img: <HTMLImageElement>document.querySelector('#props img'),
+        img: props.img.ship,
         dumper: vec2(0.06),
-        scale: vec2(3),
-        flipY: true
-    })
-    const square = new Shape({
-        x: -300,
-        y: 300,
-        verts: [
-            vec2(-20, -20),
-            vec2(20, -20),
-            vec2(20, 20),
-            vec2(-20, 20)
-        ]
-    }).setStyle({
-        fillColor: 'lime'
+        scale: vec2(3)
     })
 
-    scene.entities.push(square, ship)
+    const invader1 = new Slides({
+        x: -300,
+        y: 300,
+        img: props.img.invader1,
+        scale: vec2(5),
+        slides: vec2(1, 5)
+    })
+    const invader2 = new Slides({
+        x: 300,
+        y: -300,
+        img: props.img.invader2,
+        scale: vec2(5),
+        slides: vec2(1, 5)
+    })
+    const invader3 = new Slides({
+        x: 300,
+        y: 300,
+        img: props.img.invader3,
+        scale: vec2(5),
+        slides: vec2(1, 5)
+    })
+    const fireIdle = new Slides({
+        x: 0,
+        y: -300,
+        img: props.img.fireIdle,
+        scale: vec2(3),
+        slides: vec2(4, 1)
+    })
+    const crosshair = new Slides({
+        x: 0,
+        y: 200,
+        img: props.img.crosshair,
+        scale: vec2(0.35),
+        slides: vec2(3, 1),
+        gap: 0
+    })
+
+    scene.entities.push(invader1, invader2, invader3, ship, fireIdle, crosshair)
     scene.camera = ship
-    scene.showDebug = true
+    // scene.showDebug = true
+
+    setInterval(() => {
+        fireIdle.next()
+    }, 400)
+
+    controls.mouseMove(e => {
+        if (document.pointerLockElement) {
+            crosshair.position.x += e.movementX
+            crosshair.position.y -= e.movementY
+        }
+    })
 
 
 

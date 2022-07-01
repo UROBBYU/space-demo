@@ -325,6 +325,9 @@ export class Sprite extends Entity {
     image: ImageBitmap | HTMLImageElement = new Image()
     imageSmoothing: boolean
 
+    offset: Vector2
+    crop: Vector2
+
     constructor({
         x,
         y,
@@ -336,8 +339,10 @@ export class Sprite extends Entity {
         hidden,
         timeOfLife,
         img,
-        flipY = false,
-        imageSmoothing = false
+        flipY = true,
+        imageSmoothing = false,
+        offset = vec2(0),
+        crop = vec2(+img.width, +img.height)
     }: {
         x?: number
         y?: number
@@ -349,13 +354,17 @@ export class Sprite extends Entity {
         hidden?: boolean
         timeOfLife?: number
         img: CanvasImageSource
-        flipY?: boolean,
+        flipY?: boolean
         imageSmoothing?: boolean
+        offset?: Vector2
+        crop?: Vector2
     }) {
         super({x, y, scale, rotate, dumper, acceleration, anchor, hidden, timeOfLife})
 
         this.imageSmoothing = imageSmoothing
         this.anchor = anchor ?? vec2(+img.width / 2, +img.height / 2)
+        this.offset = offset
+        this.crop = crop
 
         this.setImage({img, flipY})
     }
@@ -363,15 +372,21 @@ export class Sprite extends Entity {
     /**
      * Draws this entity on the canvas.
      */
-    draw(ctx: CanvasRenderingContext2D) {
+    draw(ctx: CanvasRenderingContext2D, offset?: Vector2, crop?: Vector2) {
         const sT = ctx.getTransform()
         this.transform(ctx)
 
         ctx.imageSmoothingEnabled = this.imageSmoothing
         ctx.drawImage(
             this.image,
+            offset?.x ?? this.offset.x,
+            offset?.y ?? this.offset.y,
+            crop?.x ?? this.crop.x,
+            crop?.y ?? this.crop.y,
             this.position.x - this.anchor.x,
-            this.position.y - this.anchor.y
+            this.position.y - this.anchor.y,
+            crop?.x ?? this.crop.x,
+            crop?.y ?? this.crop.y
         )
 
         ctx.setTransform(sT)
@@ -382,7 +397,7 @@ export class Sprite extends Entity {
      */
     setImage({
         img,
-        flipY = false
+        flipY = true
     }: {
         img: CanvasImageSource
         flipY?: boolean
@@ -394,6 +409,104 @@ export class Sprite extends Entity {
             this.image = v
         })
         return promise
+    }
+}
+
+/**
+ * Entity, built from multiple sprites, which can be switched.
+ */
+export class Slides extends Sprite {
+    slide: Vector2
+    slides: Vector2
+    gap: number
+
+    constructor({
+        x,
+        y,
+        scale,
+        rotate,
+        dumper,
+        acceleration,
+        anchor,
+        hidden,
+        timeOfLife,
+        img,
+        flipY,
+        slides = vec2(1),
+        slide = vec2(0),
+        gap = 1,
+        imageSmoothing
+    }: {
+        x?: number
+        y?: number
+        scale?: Vector2
+        rotate?: number
+        dumper?: Vector2
+        acceleration?: Vector2
+        anchor?: Vector2
+        hidden?: boolean
+        timeOfLife?: number
+        img: CanvasImageSource
+        flipY?: boolean
+        slides?: Vector2
+        slide?: Vector2
+        gap?: number,
+        imageSmoothing?: boolean
+    }) {
+        super({x, y, scale, rotate, dumper, acceleration, anchor: vec2(0, 0), hidden, timeOfLife, img, flipY, imageSmoothing})
+
+        if ((+img.width - gap * (slides.x - 1)) % slides.x)
+            throw new Error(`Image width (${+img.width - gap * (slides.x - 1)}) cannot be evenly separated into ${+slides.x} pieces`)
+        if ((+img.height - gap * (slides.y - 1)) % slides.y)
+            throw new Error(`Image height (${+img.height - gap * (slides.y - 1)}) cannot be evenly separated into ${+slides.y} pieces`)
+
+        this.slides = slides
+        this.slide = slide
+        this.gap = gap
+
+        this.anchor = anchor ?? vec2(
+            (+img.width - gap * (slides.x - 1)) / slides.x / 2,
+            (+img.height - gap * (slides.y - 1)) / slides.y / 2
+        )
+    }
+
+    /**
+     * Moves to next slide.
+     */
+    next() {
+        if (++this.slide.x >= this.slides.x) this.slide.x = 0
+    }
+
+    /**
+     * Moves to previous slide.
+     */
+    previous() {
+        if (--this.slide.x < 0) this.slide.x = this.slides.x - 1
+    }
+
+    /**
+     * Draws this entity on the canvas.
+     */
+    draw(ctx: CanvasRenderingContext2D): void {
+        const offset = this.slideSize.sum(vec2(this.gap)).mult(this.slide)
+        super.draw(ctx, offset, this.slideSize)
+    }
+
+    /**
+     * Total amount of slides.
+     */
+    get slidesCount() {
+        return this.slides.x * this.slides.y
+    }
+
+    /**
+     * Size in pixels of a single slide.
+     */
+    get slideSize() {
+        return vec2(
+            (this.image.width - this.gap * (this.slides.x - 1)) / this.slides.x,
+            (this.image.height - this.gap * (this.slides.y - 1)) / this.slides.y
+        )
     }
 }
 
