@@ -1,3 +1,19 @@
+/*
+  Table of contents:
+    1. Body
+    2. Loading screen
+    3. Props
+    4. Main canvas
+    5. Menu
+      5.1. Main menu
+    6. Statistics
+*/
+
+
+/* ================
+    Body
+   ================ */
+
 body {
     --background-pos: -500px -500px;
     color: white;
@@ -17,25 +33,57 @@ body::before {
     left: 0;
     filter: contrast(1.2) hue-rotate(-10deg);
 }
-span {
-    font-weight: bold;
+
+
+/* ================
+    Loading screen
+   ================ */
+
+#loading-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    text-align: center;
+    line-height: 100vh;
+    background-color: #150e1c;
+    pointer-events: none;
+    user-select: none;
+    font-size: 8em;
+    z-index: 10;
 }
+
+
+/* ================
+    Props
+   ================ */
+
+#props {
+    display: none;
+}
+
+
+/* ================
+    Main canvas
+   ================ */
+
 #display {
     position: absolute;
     top: 0;
     left: 0;
-    transform: scale(1, -1);
     width: 100vw;  /* v - viewport | w - width */
     height: 100vh; /* v - viewport | h - height */
+    transform: scaleY(-1);
 }
-#stats {
-    position: sticky;
-    margin: 10px;
-    width: max-content;
+.unfocus {
+    filter: blur(5px);
 }
-#props {
-    display: none;
-}
+
+
+/* ================
+    Menu
+   ================ */
 
 #menu {
     position: absolute;
@@ -45,6 +93,8 @@ span {
     height: 100vh;
     background-color: rgba(26, 23, 34, 0.5);
 }
+
+/* Main menu */
 
 #main-menu {
 	display: flex;
@@ -58,14 +108,19 @@ span {
 
 #main-menu > .title {
 	font-size: 13vh;
+    font-family: 'Permanent Marker', cursive;
 	text-transform: uppercase;
 	color: yellow;
-	user-select: none;
-    font-family: 'Permanent Marker', cursive;
-    text-shadow: 0.03em 0.03em #4ebbdd;
     margin-bottom: 10vh;
+	user-select: none;
+    text-shadow: 0.03em 0.03em #4ebbdd;
+    animation: pop 1.5s ease-in-out infinite alternate;
 }
-
+@keyframes pop {
+    to {
+        scale: 1.05;
+    }
+}
 #main-menu > .menu-button {
 	font-size: 4vh;
 	font-family: 'Dosis', sans-serif;
@@ -84,4 +139,19 @@ span {
 }
 #main-menu > .menu-button:focus-visible::after {
     content: '<';
+}
+
+
+/* ================
+    Statistics
+   ================ */
+
+#stats {
+    position: sticky;
+    margin: 10px;
+    width: max-content;
+    user-select: none;
+}
+#stats span {
+    font-weight: bold;
 }

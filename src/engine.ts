@@ -79,7 +79,7 @@ export class Vector2 {
  */
 export class Entity {
     #oldPos: Vector2
-    #oldAcceleration: Vector2
+    #oldAcceleration = vec2(0, 0)
 
     position: Vector2
     acceleration: Vector2
@@ -359,34 +359,34 @@ export class Sprite extends Entity {
         offset?: Vector2
         crop?: Vector2
     }) {
-        super({x, y, scale, rotate, dumper, acceleration, anchor, hidden, timeOfLife})
+        super({ x, y, scale, rotate, dumper, acceleration, anchor, hidden, timeOfLife })
 
         this.imageSmoothing = imageSmoothing
         this.anchor = anchor ?? vec2(+img.width / 2, +img.height / 2)
         this.offset = offset
         this.crop = crop
 
-        this.setImage({img, flipY})
+        this.setImage({ img, flipY })
     }
 
     /**
      * Draws this entity on the canvas.
      */
-    draw(ctx: CanvasRenderingContext2D, offset?: Vector2, crop?: Vector2) {
+    draw(ctx: CanvasRenderingContext2D, offset = this.offset, crop = this.crop) {
         const sT = ctx.getTransform()
         this.transform(ctx)
 
         ctx.imageSmoothingEnabled = this.imageSmoothing
         ctx.drawImage(
             this.image,
-            offset?.x ?? this.offset.x,
-            offset?.y ?? this.offset.y,
-            crop?.x ?? this.crop.x,
-            crop?.y ?? this.crop.y,
+            offset.x,
+            offset.y,
+            crop.x,
+            crop.y,
             this.position.x - this.anchor.x,
             this.position.y - this.anchor.y,
-            crop?.x ?? this.crop.x,
-            crop?.y ?? this.crop.y
+            crop.x,
+            crop.y
         )
 
         ctx.setTransform(sT)
@@ -453,12 +453,12 @@ export class Slides extends Sprite {
         gap?: number,
         imageSmoothing?: boolean
     }) {
-        super({x, y, scale, rotate, dumper, acceleration, anchor: vec2(0, 0), hidden, timeOfLife, img, flipY, imageSmoothing})
+        super({ x, y, scale, rotate, dumper, acceleration, anchor: vec2(0, 0), hidden, timeOfLife, img, flipY, imageSmoothing })
 
         if ((+img.width - gap * (slides.x - 1)) % slides.x)
-            throw new Error(`Image width (${+img.width - gap * (slides.x - 1)}) cannot be evenly separated into ${+slides.x} pieces`)
+            throw new Error(`Image width (${+img.width - gap * (slides.x - 1)}) cannot be evenly separated into ${slides.x} pieces`)
         if ((+img.height - gap * (slides.y - 1)) % slides.y)
-            throw new Error(`Image height (${+img.height - gap * (slides.y - 1)}) cannot be evenly separated into ${+slides.y} pieces`)
+            throw new Error(`Image height (${+img.height - gap * (slides.y - 1)}) cannot be evenly separated into ${slides.y} pieces`)
 
         this.slides = slides
         this.slide = slide
@@ -515,6 +515,7 @@ export class Slides extends Sprite {
  */
 export class Scene {
     entities: Entity[] = []
+    links: Link[] = []
 
     camera = new Entity()
     ctx: CanvasRenderingContext2D
@@ -529,8 +530,14 @@ export class Scene {
      */
     updatePositions(dt: number) {
         this.entities.forEach(ent => {
+            ent.timeOfLife -= dt
+            if (ent.timeOfLife <= 0) {
+                this.entities.splice(this.entities.indexOf(ent), 1)
+                return
+            }
             ent.updatePosition(dt)
         })
+        this.links.forEach(v => v.transform())
     }
 
     /**
@@ -542,14 +549,142 @@ export class Scene {
         this.entities.forEach(ent => {
             if (!ent.hidden) {
                 ent.draw(this.ctx)
+            }
 
-                if (this.showDebug) {
-                    ent.drawVectors(this.ctx)
-                    ent.drawCenter(this.ctx)
-                }
+            if (this.showDebug) {
+                ent.drawVectors(this.ctx)
+                ent.drawCenter(this.ctx)
             }
         })
 
         this.ctx.setTransform(1, 0, 0, 1, 0, 0)
+    }
+}
+
+/**
+ * Hard link from one entity to another.
+ * 
+ * Can lock:
+ * - distance between entities;
+ * - angle between entities;
+ * - relative rotation;
+ * - scale proportion;
+ * - distance to scale proportion;
+ */
+export class Link {
+    #parentRotation: number
+    #parentScale: Vector2
+
+    parent: Entity
+    child: Entity
+
+    distance: number
+    angle: number
+    rotation: number
+    scale: Vector2
+
+    lockDistance: boolean
+    lockAngle: boolean
+    lockRotation: boolean
+    lockScale: boolean
+    scaleDistance: boolean
+
+    constructor({
+        parent,
+        child,
+        lockDistance = true,
+        lockAngle = true,
+        lockRotation = true,
+        lockScale = true,
+        scaleDistance = true
+    }: {
+        parent: Entity
+        child: Entity
+        lockDistance?: boolean
+        lockAngle?: boolean
+        lockRotation?: boolean
+        lockScale?: boolean
+        scaleDistance?: boolean
+    }) {
+        if (!(lockDistance || lockAngle || lockRotation || lockScale)) console.warn('Dummy link applied to:', parent, child)
+
+        this.parent = parent
+        this.child = child
+
+        this.lockDistance = lockDistance
+        this.lockAngle = lockAngle
+        this.lockRotation = lockRotation
+        this.lockScale = lockScale
+        this.scaleDistance = scaleDistance
+
+        this.saveState()
+
+        child.dumper = vec2(1)
+    }
+
+    /**
+     * Saves current relation of child and parent.
+     */
+    saveState() {
+        const diff = this.child.position.sum(this.parent.position.neg)
+
+        this.distance = diff.length
+        this.angle = Math.atan2(diff.y, diff.x)
+        this.rotation = this.child.rotate - this.parent.rotate
+        this.scale = this.child.scale.div(this.parent.scale)
+
+        this.#parentRotation = this.parent.rotate
+        this.#parentScale = this.parent.scale
+    }
+
+    /**
+     * Adjusts distance from child to parent.
+     */
+    updateDistance() {
+        const diff = this.child.position.sum(this.parent.position.neg)
+        let dist = diff.length
+
+        if (this.scaleDistance) {
+            const scale = this.parent.scale.div(this.#parentScale)
+            dist /= (scale.x + scale.y) / 2
+        }
+
+        this.child.position = this.parent.position.sum(diff.mult(vec2(this.distance / dist)))
+    }
+
+    /**
+     * Adjusts angle between child and parent.
+     */
+    updateAngle() {
+        const diff = this.child.position.sum(this.parent.position.neg)
+        const dist = diff.length
+        
+        const angle = this.parent.rotate - this.#parentRotation + this.angle
+
+        this.child.position = this.parent.position.sum(vec2(Math.cos(angle), Math.sin(angle)).mult(vec2(dist)))
+    }
+
+    /**
+     * Adjusts relative rotation between child and parent.
+     */
+    updateRotation() {
+        this.child.rotate = this.parent.rotate + this.rotation
+    }
+
+    /**
+     * Adjusts scale proportion of child and parent.
+     */
+    updateScale() {
+        this.child.scale = this.parent.scale.mult(this.scale)
+    }
+
+    /**
+     * Applies transforms 
+     */
+    transform() {
+        if (this.lockDistance) this.updateDistance()
+        if (this.lockAngle) this.updateAngle()
+        if (this.lockRotation) this.updateRotation()
+        if (this.lockScale) this.updateScale()
     }
 }

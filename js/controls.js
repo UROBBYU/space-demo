@@ -60,15 +60,29 @@ export default class Controls {
             this.key[name] ??= false;
         });
     }
+    /**
+     * Sets 'mousemove' event
+     */
     mouseMove(callback) {
         this.mouseMoveEvent = callback;
     }
+    /**
+     * Sets 'mousedown' event for given button.
+     */
     mouseDown(button, callback) {
         this.mouseDownEvents[button] = callback;
     }
+    /**
+     * Sets 'mouseup' event for given button.
+     */
     mouseUp(button, callback) {
         this.mouseUpEvents[button] = callback;
     }
+    /**
+     * Enables button state watching.
+     *
+     * button state can be get from {@link mouse mouse map}.
+     */
     mouseWatch(...buttons) {
         buttons.forEach(button => {
             this.mouse[button] ??= false;

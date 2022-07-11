@@ -1,29 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dosis:wght@700&family=Permanent+Marker&family=Press+Start+2P&display=swap" rel="stylesheet"> 
-    <meta charset="UTF-8">
     <title>🚀 | Rocket Control</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css" type="text/css">
+    <script src="js/howler.js"></script>
     <script src="js/propLoader.js" type="module" async></script>
-    <script src="js/controls.js" type="module" async></script>
     <script src="js/engine.js" type="module" async></script>
+    <script src="js/controls.js" type="module" async></script>
     <script src="js/main.js" type="module" async></script>
 </head>
 <body>
+    <div id="loading-screen">Loading <span>⠏</span></div>
+    <script>
+        const loadingScreen = document.getElementById('loading-screen')
+        const loadingSpan = loadingScreen.getElementsByTagName('span')[0]
+
+        const loadingChars = '⠏⠛⠹⠼⠶⠧'
+
+        let loadingStep = 0
+
+        const loadingAnim = setInterval(() => {
+            loadingStep++
+            if (loadingStep >= loadingChars.length) loadingStep = 0
+            loadingSpan.innerText = loadingChars[loadingStep]
+        }, 500)
+    </script>
     <div id="props">
         <div name="img">
+            <img name="crosshair" src="assets/img/crosshair.anim.png">
             <img src="assets/img/ship.png">
+            <img name="fireIdle" src="assets/img/ship-trust-idle.anim.png">
+            <img name="fireStart" src="assets/img/ship-trust-start.anim.png">
             <img name="invader1" src="assets/img/invader1.states.png">
             <img name="invader2" src="assets/img/invader2.states.png">
             <img name="invader3" src="assets/img/invader3.states.png">
-            <img name="fireIdle" src="assets/img/ship-trust-idle.anim.png">
-            <img name="crosshair" src="assets/img/crosshair.anim.png">
+            <img name="asteroid" src="assets/img/asteroids-l.states.png">
         </div>
     </div>
-    <canvas id="display"></canvas>
+    <canvas id="display" class="unfocus"></canvas>
     <div id="menu">
         <div id="main-menu">
             <div class="title">Space Demo</div>
@@ -41,6 +59,16 @@
         <div>SpeedX: <span id="speed-x"></span></div>
         <div>SpeedY: <span id="speed-y"></span></div>
         <div>FPS: <span id="fps"></span></div>
+        <audio controls loop>
+            <source src="assets/sound/spitfire.aac" type="audio/aac">
+            <!-- <source src="assets/sound/canon.aac" type="audio/aac"> -->
+        </audio>
     </div>
+    <script>
+        window.addEventListener('load', () => {
+            clearInterval(loadingAnim)
+            loadingScreen.remove()
+        }, { once: true })
+    </script>
 </body>
 </html>
