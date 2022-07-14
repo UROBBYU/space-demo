@@ -93,6 +93,36 @@ class Vector2 {
     get neg() {
         return vec2(-this.x, -this.y)
     }
+
+    get rotation() {
+        return Math.atan2(this.y, this.x)
+    }
+
+    static fromDegree(radius: number, degree: number) {
+        return vec2(radius * Math.cos(degree), radius * Math.sin(degree))
+    }
+}
+
+const minkowskiSum = (s1: Collider, s2: Collider) => {
+    const verts: Vector2[] = []
+    const iter = 30
+
+    for (let i = 0; i < PI2; i += PI2 / iter) {
+        const rot = Vector2.fromDegree(1, i)
+        const v = s1.support(rot).sum(s2.support(rot))
+        
+        if (verts.length > 0 && v.sum(verts.at(-1).neg).length < 0.0001) continue
+        verts.push(v)
+    }
+
+    if (verts.length > 0 && verts[0].sum(verts.at(-1).neg).length < 0.0001) verts.pop()
+    
+    return new Polygon({
+        x: s1.position.x + s2.position.x,
+        y: s1.position.y + s2.position.y,
+        color: 'red',
+        verts
+    })
 }
 
 
@@ -106,10 +136,13 @@ class Vector2 {
  * It represents a dot in space.
  */
 class Collider {
-    pos: Vector2
+    position: Vector2
     color: string
     rotate: number
     intersects = false
+    shadeIntersects = false
+
+    shade: [Vector2, Vector2] = [vec2(0), vec2(0)]
 
     constructor({
         x = 0,
@@ -122,12 +155,29 @@ class Collider {
         rotate?: number
         color: string
     }) {
-        this.pos = vec2(x, y)
+        this.position = vec2(x, y)
         this.rotate = rotate
         this.color = color
     }
 
     draw(ctx: CanvasRenderingContext2D) {}
+
+    drawShade(ctx: CanvasRenderingContext2D) {
+        ctx.fillStyle = this.shadeIntersects ? 'green' : 'grey'
+        const size = this.shade[1].sum(this.shade[0].neg)
+        ctx.fillRect(
+            this.globalPosition.x + this.shade[0].x,
+            this.globalPosition.y + this.shade[0].y,
+            size.x,
+            size.y,
+        )
+    }
+
+    support(direction: Vector2) { return vec2(0) }
+
+    get globalPosition() {
+        return center.sum(this.position)
+    }
 }
 
 /**
@@ -154,6 +204,11 @@ class Ellipse extends Collider {
         super({ x, y, rotate, color })
 
         this.radius = vec2(radiusX, radiusY)
+
+        this.shade = [
+            this.radius.neg,
+            this.radius
+        ]
     }
 
     /**
@@ -162,7 +217,7 @@ class Ellipse extends Collider {
     draw(ctx: CanvasRenderingContext2D) {
         ctx.fillStyle = this.intersects ? 'lime' : this.color
         ctx.beginPath()
-        ctx.ellipse(center.x + this.pos.x, center.y + this.pos.y, this.radius.x, this.radius.y, this.rotate, 0, PI2)
+        ctx.ellipse(this.globalPosition.x, this.globalPosition.y, this.radius.x, this.radius.y, this.rotate, 0, PI2)
         ctx.fill()
         ctx.stroke()
     }
@@ -186,6 +241,12 @@ class Circle extends Ellipse {
         radius?: number
     }) {
         super({ x, y, rotate, color, radiusX: radius, radiusY: radius })
+    }
+
+    support(direction: Vector2) {
+        const rot = Math.atan2(direction.y, direction.x)
+
+        return Vector2.fromDegree(this.radius.x, rot)
     }
 }
 
@@ -214,7 +275,8 @@ class Polygon extends Collider {
 
         if (verts.length < 3) throw new Error('Polygon must contain at least 3 vertices')
 
-        const clockwise = verts[1].sum(verts[0]).right.dot(verts[2].sum(verts[0])) > 0
+        const v0_neg = verts[0].neg
+        const clockwise = verts[1].sum(v0_neg).right.dot(verts[2].sum(v0_neg)) > 0
 
         for (let i = 0; i < verts.length; i++) {
             const a = verts[i == 0 ? verts.length - 1 : i - 1]
@@ -232,30 +294,115 @@ class Polygon extends Collider {
         }
 
         this.verts = verts
+
+        const min = vec2(Infinity, Infinity)
+        const max = vec2(-Infinity, -Infinity)
+
+        verts.forEach(v => {
+            if (v.x < min.x) min.x = v.x
+            if (v.x > max.x) max.x = v.x
+            if (v.y < min.y) min.y = v.y
+            if (v.y > max.y) max.y = v.y
+        })
+
+        this.shade = [min, max]
     }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.fillStyle = this.color
+
+        ctx.beginPath()
+        ctx.moveTo(this.globalPosition.x + this.verts[0].x, this.globalPosition.y + this.verts[0].y)
+        for (let i = 1; i < this.verts.length; i++) {
+            const vert = this.verts[i]
+            ctx.lineTo(this.globalPosition.x + vert.x, this.globalPosition.y + vert.y)
+        }
+        ctx.closePath()
+
+        ctx.fill()
+        ctx.stroke()
+    }
+
+    //TODO: Support function
 }
 
-//TODO: Regular polygon
+class Regular extends Polygon {
+    vertices: number
+    radius: number
+
+    constructor({
+        x,
+        y,
+        rotate,
+        color,
+        radius = 100,
+        vertices
+    }: {
+        x?: number
+        y?: number
+        rotate?: number
+        color: string
+        radius?: number
+        vertices: number,
+    }) {
+        const verts: Vector2[] = []
+        const dAng = PI2 / vertices
+        const ang = vertices % 2 ? PI_2 : (Math.PI - dAng) * .5
+        verts.push(vertices % 2 ? vec2(0, radius) : Vector2.fromDegree(radius, ang))
+
+        const maxAng = PI2 + ang - 0.0001
+        for (let i = ang + dAng; i < maxAng; i += dAng) verts.push(Vector2.fromDegree(radius, i))
+
+        super({ x, y, rotate, color, verts })
+
+        this.radius = radius
+        this.vertices = vertices
+    }
+
+    support(direction: Vector2) {
+        const ang = PI2 / this.vertices
+        const stRot = this.vertices % 2 ? PI_2 : PI_2 - ang / 2
+        const rot = direction.rotation - stRot
+
+        let i = Math.round(rot / ang)
+        if (i < 0) i += this.vertices
+        if (i >= this.vertices) i -= this.vertices
+
+        return this.verts[i]
+    }
+}
 
 
 
 //* Constants 👓
 
 const PI2 = Math.PI * 2
+const PI_2 = Math.PI * .5
 const center = vec2(500)
 
 
 
 //* Colliders List 🚀
 
-const colliders = [
+const colliders: Collider[] = [
     new Circle({
         x: -200,
         color: 'aquamarine'
     }),
     new Circle({
         x: 200,
+        radius: 150,
         color: 'cadetblue'
+    }),
+    new Regular({
+        x: -200,
+        color: 'aquamarine',
+        vertices: 5
+    }),
+    new Regular({
+        x: 200,
+        color: 'cadetblue',
+        vertices: 3
     })
 ]
 
@@ -283,14 +430,14 @@ window.addEventListener('load', () => {
     window.addEventListener('pointerdown', (e: PointerEvent) => {
         dragging = -1
         colliders.forEach((shape, i) => {
-            if (Math.hypot(center.x + shape.pos.x - e.pageX, center.y - shape.pos.y - e.pageY) <= shape.radius.x) dragging = i
+            if (Math.hypot(center.x + shape.position.x - e.pageX, center.y - shape.position.y - e.pageY) <= 50) dragging = i
         })
     })
 
     window.addEventListener('pointermove', (e: PointerEvent) => {
         if (e.buttons && dragging != -1) {
-            colliders[dragging].pos.x += e.movementX
-            colliders[dragging].pos.y -= e.movementY
+            colliders[dragging].position.x += e.movementX
+            colliders[dragging].position.y -= e.movementY
         }
     })
 
@@ -306,7 +453,28 @@ window.addEventListener('load', () => {
 
         colliders.forEach(v => {
             v.intersects = false
+            v.shadeIntersects = false
         })
+
+        colliders.forEach((s1, i) => {
+            for (let j = i + 1; j < colliders.length; j++) {
+                const s2 = colliders[j]
+                const s1_min = s1.globalPosition.sum(s1.shade[0])
+                const s1_max = s1.globalPosition.sum(s1.shade[1])
+                const s2_min = s2.globalPosition.sum(s2.shade[0])
+                const s2_max = s2.globalPosition.sum(s2.shade[1])
+
+                if (s1_min.x < s2_max.x &&
+                    s2_min.x < s1_max.x &&
+                    s1_min.y < s2_max.y &&
+                    s2_min.y < s1_max.y
+                ) s1.shadeIntersects = s2.shadeIntersects = true
+            }
+
+            s1.drawShade(ctx)
+        })
+
+        minkowskiSum(colliders[0], colliders[2]).draw(ctx)
 
         colliders.forEach(v => v.draw(ctx))
 
