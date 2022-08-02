@@ -32,9 +32,15 @@ class Vector2 {
     }
 
     /**
+     * Calculates the difference between gien vector and this.
+     */
+    dif(v: Vector2) {
+        return vec2(this.x - v.x, this.y - v.y)
+    }
+
+    /**
      * Calculates the multiplication of all given vectors and this.
-     * 
-     * *If no vectors were given, just returnes this.*
+     * _If no vectors were given, just returnes this._
      */
     mult(...v: Vector2[]) {
         const ret = vec2(this.x, this.y)
@@ -47,20 +53,45 @@ class Vector2 {
 
     /**
      * Calculates the division of this by given vector.
+     * 
+     * _A/B_
      */
     div(v: Vector2) {
         return vec2(this.x / v.x, this.y / v.y)
     }
 
     /**
+     * Calculates the multiplication of given number and this.
+     * 
+     * _n•A_
+     */
+    scale(n: number) {
+        return vec2(this.x * n, this.y * n)
+    }
+
+    /**
      * Calculates the dot product of this and given vector.
+     * 
+     * _A•B_
      */
     dot(v: Vector2) {
         return this.x * v.x + this.y * v.y
     }
 
     /**
+     * Calculates the triple product of this and given vector.
+     * 
+     * _(A×B)×A_
+     */
+    triProd(v: Vector2) {
+        const crossZ = this.x * v.y - this.y * v.x
+        return vec2(this.y * crossZ, -this.x * crossZ)
+    }
+
+    /**
      * Returns vector, perpendicular to this facing right.
+     * 
+     * ↱
      */
     get right() {
         return vec2(this.y, -this.x)
@@ -68,6 +99,8 @@ class Vector2 {
 
     /**
      * Returns vector, perpendicular to this facing left.
+     * 
+     * ↰
      */
     get left() {
         return vec2(-this.y, this.x)
@@ -82,6 +115,8 @@ class Vector2 {
 
     /**
      * Return this vector's length.
+     * 
+     * _|A|_
      */
     get length() {
         return Math.hypot(this.x, this.y)
@@ -94,35 +129,33 @@ class Vector2 {
         return vec2(-this.x, -this.y)
     }
 
+
+    /**
+     * Returns this vector but with length equal to 1.
+     */
+    get norm() {
+        return this.scale(1 / this.length)
+    }
+
+    /**
+     * Return this vector's rotation.
+     */
     get rotation() {
         return Math.atan2(this.y, this.x)
     }
 
-    static fromDegree(radius: number, degree: number) {
-        return vec2(radius * Math.cos(degree), radius * Math.sin(degree))
+    /**
+     * Creates a vector from length and rotation.
+     */
+    static fromDegree(length: number, degree: number) {
+        return vec2(length * Math.cos(degree), length * Math.sin(degree))
     }
 }
 
-const minkowskiSum = (s1: Collider, s2: Collider) => {
-    const verts: Vector2[] = []
-    const iter = 30
-
-    for (let i = 0; i < PI2; i += PI2 / iter) {
-        const rot = Vector2.fromDegree(1, i)
-        const v = s1.support(rot).sum(s2.support(rot))
-        
-        if (verts.length > 0 && v.sum(verts.at(-1).neg).length < 0.0001) continue
-        verts.push(v)
-    }
-
-    if (verts.length > 0 && verts[0].sum(verts.at(-1).neg).length < 0.0001) verts.pop()
-    
-    return new Polygon({
-        x: s1.position.x + s2.position.x,
-        y: s1.position.y + s2.position.y,
-        color: 'red',
-        verts
-    })
+const furthestInDir = (s1: Collider, s2: Collider, rot: Vector2) => {
+    const v1 = s1.support(rot).sum(s1.position)
+    const v2 = s2.support(rot.neg).sum(s1.position)
+    return v1.sum(v2.neg)
 }
 
 
@@ -136,13 +169,14 @@ const minkowskiSum = (s1: Collider, s2: Collider) => {
  * It represents a dot in space.
  */
 class Collider {
+    #rotate: number
+
     position: Vector2
     color: string
-    rotate: number
     intersects = false
     shadeIntersects = false
 
-    shade: [Vector2, Vector2] = [vec2(0), vec2(0)]
+    shade: [Vector2, Vector2]
 
     constructor({
         x = 0,
@@ -158,6 +192,12 @@ class Collider {
         this.position = vec2(x, y)
         this.rotate = rotate
         this.color = color
+
+        this.setShade()
+    }
+
+    setShade(shade: [Vector2, Vector2] = [vec2(0), vec2(0)]) {
+        this.shade = shade
     }
 
     draw(ctx: CanvasRenderingContext2D) {}
@@ -175,8 +215,101 @@ class Collider {
 
     support(direction: Vector2) { return vec2(0) }
 
+    shadeIntersect(s: Collider) {
+        const s1_min = this.globalPosition.sum(this.shade[0])
+        const s1_max = this.globalPosition.sum(this.shade[1])
+        const s2_min = s.globalPosition.sum(s.shade[0])
+        const s2_max = s.globalPosition.sum(s.shade[1])
+
+        if (s1_min.x < s2_max.x &&
+            s2_min.x < s1_max.x &&
+            s1_min.y < s2_max.y &&
+            s2_min.y < s1_max.y
+        ) return true
+    }
+
+    intersect(s: Collider): boolean {
+        if (!this.shadeIntersect(s)) false
+
+        // Get first p1
+
+        let dir = s.position.sum(this.position.neg)
+
+        let p1 = furthestInDir(this, s, dir)
+
+        // Get p2 as farthest point towards the origin
+
+        dir = p1.neg
+
+        let p2 = furthestInDir(this, s, dir)
+
+        // Check if p2 is beyond the origin
+
+        if (p2.dot(dir) < 0) return false
+
+        // Get p3 from normal p1-2 to origin
+
+        const p12 = p2.sum(dir)
+        dir = p12.triProd(p1)
+
+        let p3 = furthestInDir(this, s, dir)
+
+        const check = (iter: number) => {
+            if (iter <= 0) return false
+
+            // Check if p3 is beyond the origin
+
+            if (p3.dot(dir) < 0) return false
+
+            // Check if triangle contains the origin
+
+            const p3_neg = p3.neg
+    
+            const p32 = p2.dif(p3)
+            const p31 = p1.dif(p3)
+
+            dir = p32.triProd(p31)
+
+            const c = p3_neg.dot(dir)
+
+            if (Math.abs(c) < 0.001) return false
+
+            if (c > 0) { // BC
+                p1 = p3
+
+                p3 = furthestInDir(this, s, dir)
+
+                return check(iter - 1)
+            } else { // AC + Tri
+                dir = p31.triProd(p32)
+
+                const c = p3_neg.dot(dir)
+
+                if (Math.abs(c) < 0.001) return false
+
+                if (c > 0) { // AC
+                    p2 = p3
+
+                    p3 = furthestInDir(this, s, dir)
+
+                    return check(iter - 1)
+                } else return true // Tri
+            }
+        }
+
+        return check(30)
+    }
+
     get globalPosition() {
         return center.sum(this.position)
+    }
+
+    get rotate() {
+        return this.#rotate
+    }
+    set rotate(v) {
+        this.#rotate = v
+        this.setShade()
     }
 }
 
@@ -246,7 +379,7 @@ class Circle extends Ellipse {
     support(direction: Vector2) {
         const rot = Math.atan2(direction.y, direction.x)
 
-        return Vector2.fromDegree(this.radius.x, rot)
+        return Vector2.fromDegree(this.radius.x, rot).sum(this.position)
     }
 }
 
@@ -263,13 +396,15 @@ class Polygon extends Collider {
         y,
         rotate,
         color,
-        verts
+        verts,
+        chk = true
     }: {
         x?: number
         y?: number
         rotate?: number
         color: string
         verts: Vector2[]
+        chk?: boolean
     }) {
         super({ x, y, rotate, color })
 
@@ -290,37 +425,49 @@ class Polygon extends Collider {
 
             const normal = clockwise ? bc.right : bc.left
 
-            if (normal.dot(ba) <= 0) throw new Error('The polygon must be convex')
+            if (chk && normal.dot(ba) <= 0) throw new Error('The polygon must be convex')
         }
 
         this.verts = verts
 
+        this.setShade()
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.fillStyle = this.intersects ? 'lime' : this.color
+
+        const cos = Math.cos(this.rotate)
+        const sin = Math.sin(this.rotate)
+
+        ctx.beginPath()
+        ctx.moveTo(this.globalPosition.x + this.verts[0].x * cos - this.verts[0].y * sin, this.globalPosition.y + this.verts[0].x * sin + this.verts[0].y * cos)
+        for (let i = 1; i < this.verts.length; i++) {
+            const vert = this.verts[i]
+            ctx.lineTo(this.globalPosition.x + vert.x * cos - vert.y * sin, this.globalPosition.y + vert.x * sin + vert.y * cos)
+        }
+        ctx.closePath()
+
+        ctx.fill()
+        ctx.stroke()
+    }
+
+    setShade() {
         const min = vec2(Infinity, Infinity)
         const max = vec2(-Infinity, -Infinity)
 
-        verts.forEach(v => {
+        const cos = Math.cos(this.rotate)
+        const sin = Math.sin(this.rotate)
+
+        this.verts?.forEach(v => {
+            v = vec2(v.x * cos - v.y * sin, v.x * sin + v.y * cos)
+
             if (v.x < min.x) min.x = v.x
             if (v.x > max.x) max.x = v.x
             if (v.y < min.y) min.y = v.y
             if (v.y > max.y) max.y = v.y
         })
 
-        this.shade = [min, max]
-    }
-
-    draw(ctx: CanvasRenderingContext2D) {
-        ctx.fillStyle = this.color
-
-        ctx.beginPath()
-        ctx.moveTo(this.globalPosition.x + this.verts[0].x, this.globalPosition.y + this.verts[0].y)
-        for (let i = 1; i < this.verts.length; i++) {
-            const vert = this.verts[i]
-            ctx.lineTo(this.globalPosition.x + vert.x, this.globalPosition.y + vert.y)
-        }
-        ctx.closePath()
-
-        ctx.fill()
-        ctx.stroke()
+        super.setShade([min, max])
     }
 
     //TODO: Support function
@@ -368,7 +515,7 @@ class Regular extends Polygon {
         if (i < 0) i += this.vertices
         if (i >= this.vertices) i -= this.vertices
 
-        return this.verts[i]
+        return this.verts[i].sum(this.position)
     }
 }
 
@@ -395,12 +542,12 @@ const colliders: Collider[] = [
         color: 'cadetblue'
     }),
     new Regular({
-        x: -200,
+        y: -200,
         color: 'aquamarine',
         vertices: 5
     }),
     new Regular({
-        x: 200,
+        y: 200,
         color: 'cadetblue',
         vertices: 3
     })
@@ -452,29 +599,31 @@ window.addEventListener('load', () => {
         ctx.clearRect(0, 0, display.width, display.height)
 
         colliders.forEach(v => {
-            v.intersects = false
             v.shadeIntersects = false
+            v.intersects = false
         })
 
         colliders.forEach((s1, i) => {
             for (let j = i + 1; j < colliders.length; j++) {
                 const s2 = colliders[j]
-                const s1_min = s1.globalPosition.sum(s1.shade[0])
-                const s1_max = s1.globalPosition.sum(s1.shade[1])
-                const s2_min = s2.globalPosition.sum(s2.shade[0])
-                const s2_max = s2.globalPosition.sum(s2.shade[1])
+                
+                if (s1.shadeIntersect(s2)) {
+                    s1.shadeIntersects = s2.shadeIntersects = true
 
-                if (s1_min.x < s2_max.x &&
-                    s2_min.x < s1_max.x &&
-                    s1_min.y < s2_max.y &&
-                    s2_min.y < s1_max.y
-                ) s1.shadeIntersects = s2.shadeIntersects = true
+                    if (s1.intersect(s2)) s1.intersects = s2.intersects = true
+                }
             }
 
             s1.drawShade(ctx)
         })
 
-        minkowskiSum(colliders[0], colliders[2]).draw(ctx)
+        ctx.strokeStyle = 'black'
+        ctx.beginPath()
+        ctx.moveTo(500, 0)
+        ctx.lineTo(500, 1000)
+        ctx.moveTo(0, 500)
+        ctx.lineTo(1000, 500)
+        ctx.stroke()
 
         colliders.forEach(v => v.draw(ctx))
 
